@@ -1,0 +1,99 @@
+#+TITLE: Podman Authinfo-Secrets
+#+AUTHOR: Arif Er © 2024
+#+DESCRIPTION: Storing Podman Secrets in a GPG-encrypted Authinfo file.
+
+Using the =shell= secret driver, we can store authentication credentials as
+Podman secrets in ~.authinfo.gpg~.
+
+** Motivation & Benefits
+- A single place to store authentication credentials.
+- Easy to update tokens when necessary.
+- No need for an external tools such as =pass=.
+
+** Installation
+
+First, download the shell script into ~$HOME/.config/containers~, and
+~containers.conf~ to ~$HOME/.config/containers/authinfo-secrets.conf~.
+#+BEGIN_SRC shell
+  wget https://raw.githubusercontent.com/arifer612/podman-authinfo-secrets/master/gpg_store.sh -O $HOME/.config/containers/gpg_store.sh
+  wget https://raw.githubusercontent.com/arifer612/podman-authinfo-secrets/master/containers.conf -O $HOME/.config/containers/authinfo-secrets.conf
+#+END_SRC
+
+Next, configure ~.authinfo.gpg~ with your primary GPG encryption recipient. This
+may be done by adding the GPG key ID of the primary recipient *within
+quotations* to the head of the file as
+#+BEGIN_EXAMPLE conf
+  # Recipient key: "0xABCDEFG"
+  machine ....
+#+END_EXAMPLE
+or by adding the email of the primary recipient *within quotations* to the head
+of the file as
+#+BEGIN_EXAMPLE conf
+  # Recipient email: "john@doe.tld"
+  machine ....
+#+END_EXAMPLE
+or by adding the name of the primary recipient *within quotations* to the head
+of the file as
+#+BEGIN_EXAMPLE conf
+  # Recipient name: "John Doe"
+  machine ....
+#+END_EXAMPLE
+
+Otherwise, if you are using Emacs and =epa= to manage GPG-encrypted files, you
+should make use of [[https://www.gnu.org/software/emacs/manual/html_node/epa/Encrypting_002fdecrypting-gpg-files.html#index-epa_002dfile_002dselect_002dkeys-1][local file variables]]. For example, adding the GPG key ID of
+the primary recipient to the head of the file would look like
+#+BEGIN_EXAMPLE conf
+  # -*- epa-file-encrypt-to: ("0xABCDEFG") -*-
+  machine ....
+#+END_EXAMPLE
+whereas adding the email of the primary recipient to the head of the file would
+look like
+#+BEGIN_EXAMPLE conf
+  # -*- epa-file-encrypt-to: ("john@doe.tld") -*-
+  machine ....
+#+END_EXAMPLE
+and adding the name of the primary recipient to the head of the file would look
+like
+#+BEGIN_EXAMPLE conf
+  # -*- epa-file-encrypt-to: ("John Doe") -*-
+  machine ....
+#+END_EXAMPLE
+
+** Usage
+
+*** Secret-Create
+Run =podman secret create= with the driver flag. The following examples will
+result in ~.authinfo.gpg~ that looks like
+#+BEGIN_EXAMPLE authinfo
+  machine podman login PODMAN_SECRET_ID password P@s5W0rD
+#+END_EXAMPLE
+
+**** From stdin
+#+BEGIN_SRC shell
+  CONTAINERS_CONF=$HOME/.config/containers/authinfo-secrets.conf podman secret create john@docker.io <(printf P@s5W0rD)
+#+END_SRC
+
+**** From a file
+#+BEGIN_SRC shell
+  CONTAINERS_CONF=$HOME/.config/containers/authinfo-secrets.conf podman secret create john@docker.io my-docker-io-password.txt
+#+END_SRC
+where the contents of ~my-docker-io-password.txt~ is
+#+BEGIN_EXAMPLE text
+  $ cat my-docker-io-password.txt
+  P@s5W0rD
+#+END_EXAMPLE
+
+*** Secret-Remove
+:PROPERTIES:
+:ID:       fa24f5b4-8ab5-4e25-bb5b-5fee24dce19b
+:END:
+Simply run =podman secret rm= as normal.
+#+BEGIN_SRC shell
+  podman secret rm john@docker.io
+#+END_SRC
+
+*** Podman-Login
+#+BEGIN_SRC shell
+  podman login --username john --secret john@docker.io docker.io
+  podman login --username johnny --secret johnny@fedora registry.fedoraproject.org
+#+END_SRC
